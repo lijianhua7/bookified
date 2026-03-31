@@ -432,7 +432,7 @@
   }
 
   .auth-footer {
-    @apply mt-10 text-center text-sm text-(--text-secondary) max-w-md;
+    @apply mt-10 text-center text-sm text-[var(--text-secondary)] max-w-md;
   }
 
   /* ===========================================
@@ -1078,10 +1078,10 @@ button[data-variant='unstyled'] *,
 }
 
 /* Add "Current Plan" indicator to active plan that doesn't have a button
-   Note: Hardcoded English text - if i18n support is needed, this should be
-   handled in JavaScript with translated strings rendered in the DOM. */
+   Note: Uses attr(data-current-plan) for localization support.
+   Set the data-current-plan attribute in your localization code at render time. */
 .cl-pricingTableCard:first-child .cl-pricingTableCardContent::after {
-  content: 'Your Current Plan';
+  content: attr(data-current-plan);
   display: block;
   text-align: center;
   padding: 0.75rem 1.5rem;
