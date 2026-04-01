@@ -31,8 +31,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
+    // TODO: Inject locale dynamically when i18n/localization is wired up
     <html
-      lang="en"
+      lang="zh-CN"
       className={`${ibmPlexSerif.variable} ${monaSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
