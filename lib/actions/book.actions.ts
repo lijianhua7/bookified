@@ -1,10 +1,29 @@
-'use server';
+"use server";
 
 import { connectToDatabase } from "@/database/mongoose";
 import { generateSlug, serializeData } from "../utils";
 import { CreateBook, TextSegment } from "@/type";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
+
+export const getAllBooks = async () => {
+  try {
+    await connectToDatabase();
+
+    const books = await Book.find().sort({createdAt: -1}).lean();
+
+    return {
+      success: true,
+      data: serializeData(books),
+    };
+  } catch (e) {
+    console.error("获取所有图书失败", e);
+    return {
+      success: false,
+      error: e,
+    };
+  }
+};
 
 // 检查图书是否已存在
 export const checkBookExists = async (title: string) => {
@@ -29,7 +48,7 @@ export const checkBookExists = async (title: string) => {
     console.error("图书已存在", e);
     return {
       exists: false,
-      error: e instanceof Error ? e.message : String(e),
+      error: e,
     };
   }
 };
@@ -65,7 +84,7 @@ export const createBook = async (data: CreateBook) => {
     console.error("创建图书失败", e);
     return {
       success: false,
-      error: e instanceof Error ? e.message : String(e),
+      error: e,
     };
   }
 };
@@ -117,7 +136,7 @@ export const saveBookSegments = async (
 
     return {
       success: false,
-      error: e instanceof Error ? e.message : String(e),
+      error: e,
     };
   }
 };
