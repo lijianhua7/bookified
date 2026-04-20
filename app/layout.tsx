@@ -4,7 +4,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import NavBar from "@/components/NavBar";
 import { CLERK_AUTH_APPEARANCE_OVERRIDE } from "@/lib/constants";
-
+import { Toaster } from "@/components/ui/sonner"
 
 const ibmPlexSerif = IBM_Plex_Serif({
   variable: "--font-ibm-plex-serif",
@@ -40,6 +40,7 @@ export default function RootLayout({
         <ClerkProvider appearance={CLERK_AUTH_APPEARANCE_OVERRIDE}>
           <NavBar />
           {children}
+          <Toaster />
         </ClerkProvider>
       </body>
     </html>

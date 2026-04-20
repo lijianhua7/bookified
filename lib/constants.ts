@@ -1,8 +1,8 @@
-// Brand color - used in JS files where CSS variables aren't available
-export const BRAND_COLOR = '#212a3b'; // Dark blue-gray
-export const BRAND_COLOR_HOVER = '#3d485e'; // Medium blue-gray
+// 品牌色 - 用于 JS 文件中无法使用 CSS 变量的场景
+export const BRAND_COLOR = '#212a3b'; // 深蓝灰色
+export const BRAND_COLOR_HOVER = '#3d485e'; // 中蓝灰色
 
-// Sample books for the homepage (using Open Library covers)
+// 首页示例书籍（使用 Open Library 封面）
 export const sampleBooks = [
     {
         _id: '1',
@@ -86,54 +86,54 @@ export const sampleBooks = [
     },
 ];
 
-// File validation helpers
+// 文件校验辅助常量
 export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 export const ACCEPTED_PDF_TYPES = ['application/pdf'];
 export const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
-// Pre-configured VAPI assistant ID (hardcoded for this app)
-const assistantId = process.env.NEXT_PUBLIC_ASSISTANT_ID;
-if (!assistantId || assistantId.trim() === '') {
-    throw new Error('NEXT_PUBLIC_ASSISTANT_ID environment variable is required but not set. Please configure it in your .env file.');
-}
-export const ASSISTANT_ID = assistantId;
+// 预配置的 VAPI 助手 ID（在此应用中硬编码）
+// const assistantId = process.env.NEXT_PUBLIC_ASSISTANT_ID;
+// if (!assistantId || assistantId.trim() === '') {
+//     throw new Error('NEXT_PUBLIC_ASSISTANT_ID 环境变量是必需的但未设置。请在 .env 文件中配置。');
+// }
+// export const ASSISTANT_ID = assistantId;
 
-// 11Labs Voice IDs - Optimized for conversational AI
-// Voices selected for natural, engaging book conversations
+// 11Labs 语音 ID - 针对对话式 AI 优化
+// 精选适合自然、引人入胜的书籍对话的语音
 export const voiceOptions = {
-    // Male voices
-    dave: { id: 'CYw3kZ02Hs0563khs1Fj', name: 'Dave', description: 'Young male, British-Essex, casual & conversational' },
-    daniel: { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', description: 'Middle-aged male, British, authoritative but warm' },
-    chris: { id: 'iP95p4xoKVk53GoZ742B', name: 'Chris', description: 'Male, casual & easy-going' },
-    // Female voices
-    rachel: { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', description: 'Young female, American, calm & clear' },
-    sarah: { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: 'Young female, American, soft & approachable' },
+    // 男声
+    dave: { id: 'CYw3kZ02Hs0563khs1Fj', name: 'Dave', description: '年轻男性，英式埃塞克斯口音，休闲对话风格' },
+    daniel: { id: 'onwK4e9ZLuTAKqWW03F9', name: 'Daniel', description: '中年男性，英式口音，权威而温暖' },
+    chris: { id: 'iP95p4xoKVk53GoZ742B', name: 'Chris', description: '男性，休闲随和风格' },
+    // 女声
+    rachel: { id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel', description: '年轻女性，美式口音，沉稳清晰' },
+    sarah: { id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', description: '年轻女性，美式口音，柔和亲切' },
 };
 
-// Voice categories for the selector UI
+// 语音选择器 UI 的分类
 export const voiceCategories = {
     male: ['dave', 'daniel', 'chris'],
     female: ['rachel', 'sarah'],
 };
 
-// Default voice
+// 默认语音
 export const DEFAULT_VOICE = 'rachel';
 
-// ElevenLabs voice settings optimized for conversational AI
+// ElevenLabs 语音设置，针对对话式 AI 优化
 export const VOICE_SETTINGS = {
-    stability: 0.45, // Lower for more emotional, dynamic delivery (0.30-0.50 is natural)
-    similarityBoost: 0.75, // Enhances clarity without distortion
-    style: 0, // Keep at 0 for conversational AI (higher = more latency, less stable)
-    useSpeakerBoost: true, // Improves voice quality
-    speed: 1.0, // Natural conversation speed
+    stability: 0.45, // 较低值使语音更富情感和动态（0.30-0.50 较自然）
+    similarityBoost: 0.75, // 增强清晰度且不失真
+    style: 0, // 对话式 AI 保持为 0（越高延迟越大，越不稳定）
+    useSpeakerBoost: true, // 提升语音质量
+    speed: 1.0, // 自然对话速度
 };
 
-// VAPI configuration for natural conversation
-// NOTE: These settings should be configured in the VAPI Dashboard for the assistant
-// They are kept here for reference and documentation purposes
+// VAPI 自然对话配置
+// 注意：这些设置应在 VAPI 控制台中为助手进行配置
+// 此处保留仅供参考和文档记录
 export const VAPI_DASHBOARD_CONFIG = {
-    // Turn-taking settings
+    // 轮流发言设置
     startSpeakingPlan: {
         smartEndpointingEnabled: true,
         waitSeconds: 0.4,
@@ -143,18 +143,18 @@ export const VAPI_DASHBOARD_CONFIG = {
         voiceSeconds: 0.2,
         backoffSeconds: 1.0,
     },
-    // Timing settings
+    // 时间设置
     silenceTimeoutSeconds: 30,
     responseDelaySeconds: 0.4,
     llmRequestDelaySeconds: 0.1,
-    // Conversation features
+    // 对话功能
     backgroundDenoisingEnabled: true,
     backchannelingEnabled: true,
     fillerInjectionEnabled: false,
 };
 
-// Clerk appearance overrides - Warm Literary Style
-// Note: Tailwind requires static class names at build time, so we hardcode color values here
+// Clerk 外观覆盖 - 温暖文艺风格
+// 注意：Tailwind 在构建时需要静态类名，因此这里硬编码颜色值
 export const CLERK_AUTH_APPEARANCE_OVERRIDE = {
     rootBox: 'mx-auto',
     card: 'shadow-none border-none rounded-xl bg-transparent',
