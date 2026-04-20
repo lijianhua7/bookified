@@ -131,7 +131,7 @@ export const saveBookSegments = async (
     // 保存失败前可能已经存储了一些图书段落，需要删除
     await BookSegment.deleteMany({ bookId });
     // 删除该图书
-    await Book.findByIdAndDelete(bookId);
+    await Book.findByIdAndDelete({_id: bookId});
     console.log("由于保存段落失败，已删除该图书和所有图书段落");
 
     return {
