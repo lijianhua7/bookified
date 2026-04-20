@@ -42,7 +42,12 @@ export const splitIntoSegments = (
     throw new Error('overlapSize must be >= 0 and < segmentSize');
   }
 
-  const words = text.split(/\s+/).filter((word) => word.length > 0);
+  const normalizedText = text.trim();
+  const hasWhitespace = /\s/.test(normalizedText);
+  const words = hasWhitespace
+      ? normalizedText.split(/\s+/).filter((word) => word.length > 0)
+      : Array.from(normalizedText);
+  const joiner = hasWhitespace ? ' ' : '';
   const segments: TextSegment[] = [];
 
   let segmentIndex = 0;
@@ -51,7 +56,7 @@ export const splitIntoSegments = (
   while (startIndex < words.length) {
     const endIndex = Math.min(startIndex + segmentSize, words.length);
     const segmentWords = words.slice(startIndex, endIndex);
-    const segmentText = segmentWords.join(' ');
+    const segmentText = segmentWords.join(joiner);
 
     segments.push({
       text: segmentText,
