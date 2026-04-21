@@ -5,8 +5,13 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Upload, Image as ImageIcon, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-
+import { cn, parsePDFFile } from "@/lib/utils";
+import {
+  MAX_FILE_SIZE,
+  ACCEPTED_PDF_TYPES,
+  MAX_IMAGE_SIZE,
+  ACCEPTED_IMAGE_TYPES,
+} from "@/lib/constants";
 import {
   Form,
   FormControl,
@@ -16,6 +21,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@clerk/nextjs";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { checkBookExists, createBook, saveBookSegments } from "@/lib/actions/book.actions";
+import { upload } from "@vercel/blob/client";
 
 const VOICES = {
   male: [
@@ -42,17 +52,29 @@ const VOICES = {
 };
 
 const formSchema = z.object({
-  pdfFile: z.any().refine((file) => file, "请选择一本 PDF 文件"),
-  coverImage: z.any().optional(),
-  title: z.string().min(1, "标题是必填项"),
-  author: z.string().min(1, "作者是必填项"),
+  title: z.string().min(1, "标题是必填项").max(100, "标题不能超过 100 个字符"),
+  author: z.string().min(1, "作者是必填项").max(100, "作者名不能超过 100 个字符"),
   voice: z.string().min(1, "请选择一个语音"),
+  pdfFile: z
+    .instanceof(File, { message: "请选择一本 PDF 文件" })
+    .refine((file) => file.size <= MAX_FILE_SIZE, "文件大小不能超过 50MB")
+    .refine((file) => ACCEPTED_PDF_TYPES.includes(file.type), "仅支持 PDF 格式的文件"),
+  coverImage: z
+    .instanceof(File)
+    .optional()
+    .refine((file) => !file || file.size <= MAX_IMAGE_SIZE, "图片大小不能超过 10MB")
+    .refine(
+      (file) => !file || ACCEPTED_IMAGE_TYPES.includes(file.type),
+      "仅支持 .jpg、.jpeg、.png 和 .webp 格式的图片",
+    ),
 });
 
 export default function UploadForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [pdfFilename, setPdfFilename] = useState<string | null>(null);
   const [coverFilename, setCoverFilename] = useState<string | null>(null);
+  const { userId } = useAuth();
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -60,16 +82,125 @@ export default function UploadForm() {
       title: "",
       author: "",
       voice: "",
+      pdfFile: undefined,
+      coverImage: undefined,
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(data: z.infer<typeof formSchema>) {
+    // 检查用户是否登录
+    if (!userId) {
+      return toast.error("上传图书前请先登录！");
+    }
+
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+
+    // PostHog -> Track Book Uploads ...
+
+    try {
+      // 检查图书是否已存在
+      const existsCheck = await checkBookExists(data.title);
+      if (existsCheck.exists && existsCheck.book) {
+        toast.info("同名的图书已存在！");
+        // 清空表单
+        form.reset();
+        // 已存在就跳转到该图书的详情页面
+        router.push(`/books/${existsCheck.book.slug}`);
+        return;
+      }
+
+      // 格式化文件名
+      const fileTitle = data.title.replace(/\s+/g, "-").toLowerCase();
+      // 解析 PDF 文件
+      const pdfFile = data.pdfFile;
+      const parsedPdf = await parsePDFFile(pdfFile);
+      if (parsedPdf.content.length === 0) {
+        toast.error("无法解析 PDF 文件，请上传有效的 PDF 文件！");
+        return;
+      }
+
+      // 上传pdf
+      const uploadedPdfBlob = await upload(fileTitle, pdfFile, {
+        access: "public",
+        handleUploadUrl: "/api/upload",
+        contentType: "application/pdf",
+      })
+
+      // 上传封面
+      let coverUrl: string;
+
+      if (data.coverImage) {
+        const coverFile = data.coverImage;
+        const uploadedCoverBlob = await upload(`${fileTitle}_cover.png`, coverFile, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+          contentType: coverFile.type,
+        })
+        coverUrl = uploadedCoverBlob.url;
+      } else {
+        const response = await fetch(parsedPdf.cover);
+        const blob = await response.blob();
+
+        const uploadedCoverBlob = await upload(`${fileTitle}_cover.png`, blob, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+          contentType: "image/png",
+        })
+        coverUrl = uploadedCoverBlob.url;
+      }
+
+      // 创建图书
+      const book = await createBook({
+        clerkId: userId,
+        title: data.title,
+        author: data.author,
+        persona: data.voice,
+        fileURL: uploadedPdfBlob.url,
+        fileBlobKey: uploadedPdfBlob.pathname,
+        coverURL: coverUrl,
+        fileSize: pdfFile.size,
+      })
+
+      // 创建失败
+      if (!book.success) {
+        throw new Error("创建图书失败");
+      }
+
+      // 创建的图书已存在
+      if (book.alreadyExists) {
+        toast.info("同名的图书已存在！");
+        // 清空表单
+        form.reset();
+        // 已存在就跳转到该图书的详情页面
+        router.push(`/books/${book.data.slug}`);
+        return;
+      }
+
+      // 创建成功
+      // 保存图书片段
+      const segments = await saveBookSegments(
+        book.data._id,
+        userId,
+        parsedPdf.content,
+      )
+
+      if (!segments.success) {
+        toast.error("保存图书片段失败");
+        throw new Error("保存图书片段失败");
+      }
+
+      toast.success("图书创建成功！");
+      // 清空表单
+      form.reset();
+      // 创建新书成功跳转到首页
+      router.push(`/`);
+
+    } catch (e) {
+      console.error(e);
+      toast.error("上传图书失败，请稍后重试！");
+    } finally {
       setIsLoading(false);
-      console.log("Form Submitted:", values);
-    }, 2000);
+    }
   }
 
   return (
