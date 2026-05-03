@@ -15,9 +15,10 @@ export default async function BookPage({
   if (!userId) redirect("/sign-in");
 
   const { slug } = await params;
+  const decodedSlug = decodeURIComponent(slug);
 
   // 根据 slug 获取图书数据
-  const result = await getBookBySlug(slug);
+  const result = await getBookBySlug(decodedSlug);
   if (!result.success || !result.data) redirect("/");
 
   const book = result.data;
