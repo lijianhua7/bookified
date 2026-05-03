@@ -6,6 +6,7 @@ import { CreateBook, TextSegment } from "@/type";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
 import mongoose from "mongoose";
+import { revalidatePath } from "next/cache";
 
 export const getAllBooks = async () => {
   try {
@@ -76,6 +77,8 @@ export const createBook = async (data: CreateBook) => {
     // Todo: 创建图书前先检查订阅限制
 
     const book = await Book.create({ ...data, slug, totalSegments: 0 });
+
+    revalidatePath('/');
 
     return {
       success: true,
