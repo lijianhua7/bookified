@@ -226,6 +226,7 @@ export function useVapi(book: IBook) {
     }, []);
 
     const start = useCallback(async () => {
+        let createdSessionId: string | null = null;
         if (!userId) {
             setLimitError('请先登录以开始语音对话。');
             return;
@@ -244,7 +245,8 @@ export function useVapi(book: IBook) {
                 return;
             }
 
-            sessionIdRef.current = result.sessionId || null;
+            createdSessionId = result.sessionId || null;
+            sessionIdRef.current = createdSessionId;
             // 注意：服务端返回的 maxDurationMinutes 仅供参考
             // 实际限制由 useLatestRef(limits.maxSessionMinutes * 60) 执行
 
@@ -270,6 +272,13 @@ export function useVapi(book: IBook) {
                 // },
             });
         } catch (err) {
+            if (createdSessionId && sessionIdRef.current === createdSessionId) {
+                await endVoiceSession(createdSessionId, durationRef.current).catch((cleanupErr) =>
+                    console.error('启动失败后结束语音会话失败:', cleanupErr),
+                );
+                sessionIdRef.current = null;
+            }
+
             console.error('启动通话失败:', err);
             setStatus('idle');
             setLimitError('启动语音对话失败，请重试。');

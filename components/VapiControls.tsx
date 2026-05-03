@@ -16,6 +16,8 @@ export default function VapiControls({ book }: { book: IBook }) {
     duration,
     start,
     stop,
+    limitError,
+    clearError,
   } = useVapi(book);
 
   return (
@@ -90,7 +92,14 @@ export default function VapiControls({ book }: { book: IBook }) {
             </div>
           </div>
         </div>
-
+        {limitError && (
+          <div role="alert" className="vapi-error-banner">
+            <span>{limitError}</span>
+            <button type="button" onClick={clearError}>
+              关闭
+            </button>
+          </div>
+        )}
         {/* ====== 对话记录区域 ====== */}
         <div className="vapi-transcript-wrapper">
           <Transcript

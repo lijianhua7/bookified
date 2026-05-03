@@ -197,7 +197,12 @@ export const searchBookSegments = async (bookId: string, query: string, limit: n
         // 回退: 正则表达式搜索匹配任意关键字
         if (segments.length === 0) {
             const keywords = query.split(/\s+/).filter((k) => k.length > 2);
-            const pattern = keywords.map(escapeRegex).join('|');
+            const fallbackTerms = keywords.length > 0 ? keywords : [query.trim()];
+            const pattern = fallbackTerms.map(escapeRegex).join('|');
+
+            if (!pattern) {
+                return { success: true, data: [] };
+            }
 
             segments = await BookSegment.find({
                 bookId: bookObjectId,
