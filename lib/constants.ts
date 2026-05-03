@@ -92,12 +92,8 @@ export const ACCEPTED_PDF_TYPES = ['application/pdf'];
 export const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10MB
 export const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
-// 预配置的 VAPI 助手 ID（在此应用中硬编码）
-// const assistantId = process.env.NEXT_PUBLIC_ASSISTANT_ID;
-// if (!assistantId || assistantId.trim() === '') {
-//     throw new Error('NEXT_PUBLIC_ASSISTANT_ID 环境变量是必需的但未设置。请在 .env 文件中配置。');
-// }
-// export const ASSISTANT_ID = assistantId;
+// VAPI 助手 ID（为本应用硬编码）
+export const ASSISTANT_ID = process.env.NEXT_PUBLIC_ASSISTANT_ID!;
 
 // 11Labs 语音 ID - 针对对话式 AI 优化
 // 精选适合自然、引人入胜的书籍对话的语音

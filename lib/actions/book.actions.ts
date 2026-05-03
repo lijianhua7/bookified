@@ -1,10 +1,12 @@
 "use server";
 
 import { connectToDatabase } from "@/database/mongoose";
-import { generateSlug, serializeData } from "../utils";
+import { escapeRegex, generateSlug, serializeData } from "../utils";
 import { CreateBook, TextSegment } from "@/type";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
+import mongoose from "mongoose";
+import { revalidatePath } from "next/cache";
 
 export const getAllBooks = async () => {
   try {
@@ -76,6 +78,8 @@ export const createBook = async (data: CreateBook) => {
 
     const book = await Book.create({ ...data, slug, totalSegments: 0 });
 
+    revalidatePath('/');
+
     return {
       success: true,
       data: serializeData(book),
@@ -139,4 +143,92 @@ export const saveBookSegments = async (
       error: e,
     };
   }
+};
+
+// 根据 slug 获取图书
+export const getBookBySlug = async (slug: string) => {
+  try {
+    await connectToDatabase();
+
+    const book = await Book.findOne({ slug }).lean();
+
+    if (!book) {
+      return {
+        success: false,
+        error: "图书不存在",
+      };
+    }
+
+    return {
+      success: true,
+      data: serializeData(book),
+    };
+  } catch (e) {
+    console.error("根据 slug 获取图书失败", e);
+    return {
+      success: false,
+      error: e,
+    };
+  }
+};
+
+// 搜索图书段落
+export const searchBookSegments = async (bookId: string, query: string, limit: number = 5) => {
+    try {
+        await connectToDatabase();
+
+        console.log(`正在搜索图书段落: "${query}", ID: ${bookId}`);
+
+        const bookObjectId = new mongoose.Types.ObjectId(bookId);
+
+        // 首先尝试使用 MongoDB 文本搜索（需要文本索引）
+        let segments: Record<string, unknown>[] = [];
+        try {
+            segments = await BookSegment.find({
+                bookId: bookObjectId,
+                $text: { $search: query },
+            })
+                .select('_id bookId content segmentIndex pageNumber wordCount')
+                .sort({ score: { $meta: 'textScore' } })
+                .limit(limit)
+                .lean();
+        } catch {
+            // 文本索引可能不存在 - 回退到正则表达式搜索
+            segments = [];
+        }
+
+        // 回退: 正则表达式搜索匹配任意关键字
+        if (segments.length === 0) {
+            const keywords = query.split(/\s+/).filter((k) => k.length > 2);
+            const fallbackTerms = keywords.length > 0 ? keywords : [query.trim()];
+            const pattern = fallbackTerms.map(escapeRegex).join('|');
+
+            if (!pattern) {
+                return { success: true, data: [] };
+            }
+
+            segments = await BookSegment.find({
+                bookId: bookObjectId,
+                content: { $regex: pattern, $options: 'i' },
+            })
+                .select('_id bookId content segmentIndex pageNumber wordCount')
+                .sort({ segmentIndex: 1 })
+                .limit(limit)
+                .lean();
+        }
+
+        console.log(`搜索完成,共找到 ${segments.length} 个结果`);
+
+        return {
+            success: true,
+            data: serializeData(segments),
+        };
+    } catch (error) {
+        console.error('搜索图书段落失败:', error);
+        return {
+            success: false,
+            error: (error as Error).message,
+            data: [],
+        };
+    }
 };

@@ -1,9 +1,5 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI;
-
-if (!MONGODB_URI) throw new Error("请配置MONGODB_URI 环境变量");
-
 // 声明全局变量 mongooseCache
 declare global {
   var mongooseCache: {
@@ -21,6 +17,9 @@ let cached =
 export const connectToDatabase = async () => {
   // 如果已经连接，直接返回
   if (cached.conn) return cached.conn;
+
+  const MONGODB_URI = process.env.MONGODB_URI;
+  if (!MONGODB_URI) throw new Error("请配置MONGODB_URI 环境变量");
 
   // 如果没有连接，创建连接
   if (!cached.promise) {
