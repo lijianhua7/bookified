@@ -15,6 +15,10 @@ const navItems = [
     label: "添加新书",
     href: "/books/new",
   },
+  {
+    label: "订阅",
+    href: "/subscriptions",
+  },
 ];
 
 export default function NavBar() {
@@ -60,9 +64,9 @@ export default function NavBar() {
               <div className="nav-user-link">
                 <UserButton />
                 {user?.firstName && (
-                  <Link href="/subscriptions" className="nav-user-name">
+                  <span className="nav-user-name">
                     {user.firstName}
-                  </Link>
+                  </span>
                 )}
               </div>
             </Show>

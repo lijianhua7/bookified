@@ -6,11 +6,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Vapi from '@vapi-ai/web';
 import { useAuth } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 
 import { ASSISTANT_ID, DEFAULT_VOICE, VOICE_SETTINGS } from '@/lib/constants';
 import { getVoice } from '@/lib/utils';
 import { IBook, Messages } from '@/type';
 import { startVoiceSession, endVoiceSession } from '@/lib/actions/session.actions';
+import { useUserPlanLimits } from '@/hooks/use-billing';
 
 export function useLatestRef<T>(value: T) {
     const ref = useRef(value);
@@ -27,11 +29,12 @@ const TIMER_INTERVAL_MS = 1000;
 const SECONDS_PER_MINUTE = 60;
 const TIME_WARNING_THRESHOLD = 60; // 剩余秒数低于此值时显示警告
 
-let vapi: InstanceType<typeof Vapi>;
+let vapi: InstanceType<typeof Vapi> | null = null;
 function getVapi() {
     if (!vapi) {
         if (!VAPI_API_KEY) {
-            throw new Error('NEXT_PUBLIC_VAPI_API_KEY 环境变量未设置，请在 .env 文件中配置');
+            console.error('NEXT_PUBLIC_VAPI_API_KEY 环境变量未设置，请在 .env 文件中配置');
+            return null;
         }
         vapi = new Vapi(VAPI_API_KEY);
     }
@@ -42,7 +45,8 @@ export type CallStatus = 'idle' | 'connecting' | 'starting' | 'listening' | 'thi
 
 export function useVapi(book: IBook) {
     const { userId } = useAuth();
-    // const { limits } = useSubscription(); // 订阅限制
+    const limits = useUserPlanLimits(); // 订阅限制
+    const router = useRouter();
 
     const [status, setStatus] = useState<CallStatus>('idle');
     const [messages, setMessages] = useState<Messages[]>([]);
@@ -57,7 +61,7 @@ export function useVapi(book: IBook) {
     const isStoppingRef = useRef(false);
 
     // 保持 ref 与最新值同步，用于回调函数中
-    // const maxDurationRef = useLatestRef(limits.maxSessionMinutes * 60);
+    const maxDurationRef = useLatestRef(limits.sessionMinutes * 60);
     const durationRef = useLatestRef(duration);
     const voice = book.persona || DEFAULT_VOICE;
 
@@ -79,14 +83,18 @@ export function useVapi(book: IBook) {
                         setDuration(newDuration);
 
                         // 检查通话时长上限
-                        // if (newDuration >= maxDurationRef.current) {
-                        //     getVapi().stop();
-                        //     setLimitError(
-                        //         `会话时长已达上限（${Math.floor(
-                        //             maxDurationRef.current / SECONDS_PER_MINUTE,
-                        //         )} 分钟）。请升级套餐以获取更长的会话时间。`,
-                        //     );
-                        // }
+                        if (newDuration >= maxDurationRef.current) {
+                            getVapi()?.stop();
+                            setLimitError(
+                                `会话时长已达上限（${Math.floor(
+                                    maxDurationRef.current / SECONDS_PER_MINUTE,
+                                )} 分钟）。即将返回主页...`,
+                            );
+                            // 延时重定向
+                            setTimeout(() => {
+                                router.push('/');
+                            }, 3000);
+                        }
                     }
                 }, TIMER_INTERVAL_MS);
             },
@@ -148,9 +156,9 @@ export function useVapi(book: IBook) {
                     return;
                 }
 
-                // AI partial 转写 → 逐词显示
+                // AI partial 转写 → 逐词显示 (Vapi 助手 partial 是增量 token)
                 if (message.role === 'assistant' && message.transcriptType === 'partial') {
-                    setCurrentMessage(message.transcript);
+                    setCurrentMessage((prev) => prev + message.transcript);
                     return;
                 }
 
@@ -205,13 +213,13 @@ export function useVapi(book: IBook) {
 
         // 注册所有事件处理器
         Object.entries(handlers).forEach(([event, handler]) => {
-            getVapi().on(event as keyof typeof handlers, handler as () => void);
+            getVapi()?.on(event as keyof typeof handlers, handler as () => void);
         });
 
         return () => {
             // 组件卸载时结束活跃会话
             if (sessionIdRef.current) {
-                getVapi().stop();
+                getVapi()?.stop();
                 endVoiceSession(sessionIdRef.current, durationRef.current).catch((err) =>
                     console.error('组件卸载时结束语音会话失败:', err),
                 );
@@ -219,7 +227,7 @@ export function useVapi(book: IBook) {
             }
             // 清理事件处理器
             Object.entries(handlers).forEach(([event, handler]) => {
-                getVapi().off(event as keyof typeof handlers, handler as () => void);
+                getVapi()?.off(event as keyof typeof handlers, handler as () => void);
             });
             if (timerRef.current) clearInterval(timerRef.current);
         };
@@ -248,11 +256,18 @@ export function useVapi(book: IBook) {
             createdSessionId = result.sessionId || null;
             sessionIdRef.current = createdSessionId;
             // 注意：服务端返回的 maxDurationMinutes 仅供参考
-            // 实际限制由 useLatestRef(limits.maxSessionMinutes * 60) 执行
+            // 实际限制由 useLatestRef(limits.sessionMinutes * 60) 执行
 
             const firstMessage = `嘿，很高兴认识你。在我们深入之前，先问一下：你读过《${book.title}》吗？还是说我们从头开始？`;
 
-            await getVapi().start(ASSISTANT_ID, {
+            const vapiInstance = getVapi();
+            if (!vapiInstance) {
+                setLimitError('语音服务尚未配置（缺少 API Key），无法启动会话。');
+                setStatus('idle');
+                return;
+            }
+
+            await vapiInstance.start(ASSISTANT_ID, {
                 firstMessage,
                 // transcriber: {
                 //     provider: 'google',
@@ -287,7 +302,7 @@ export function useVapi(book: IBook) {
 
     const stop = useCallback(() => {
         isStoppingRef.current = true;
-        getVapi().stop();
+        getVapi()?.stop();
     }, []);
 
     const clearError = useCallback(() => {
@@ -301,10 +316,10 @@ export function useVapi(book: IBook) {
         status === 'speaking';
 
     // 计算剩余时间
-    // const maxDurationSeconds = limits.maxSessionMinutes * SECONDS_PER_MINUTE;
-    // const remainingSeconds = Math.max(0, maxDurationSeconds - duration);
-    // const showTimeWarning =
-    //     isActive && remainingSeconds <= TIME_WARNING_THRESHOLD && remainingSeconds > 0;
+    const maxDurationSeconds = limits.sessionMinutes * SECONDS_PER_MINUTE;
+    const remainingSeconds = Math.max(0, maxDurationSeconds - duration);
+    const showTimeWarning =
+        isActive && remainingSeconds <= TIME_WARNING_THRESHOLD && remainingSeconds > 0;
 
     return {
         status,
@@ -317,9 +332,9 @@ export function useVapi(book: IBook) {
         stop,
         limitError,
         clearError,
-        // maxDurationSeconds,
-        // remainingSeconds,
-        // showTimeWarning,
+        maxDurationSeconds,
+        remainingSeconds,
+        showTimeWarning,
     };
 }
 
