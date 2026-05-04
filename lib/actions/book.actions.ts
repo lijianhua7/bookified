@@ -13,17 +13,23 @@ import { getUserPlanLimits } from "../billing";
 
 export const getAllBooks = async (query?: string) => {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      return {
+        success: true,
+        data: [],
+      };
+    }
+
     await connectToDatabase();
 
-    let filter = {};
+    let filter: any = { clerkId: userId };
     if (query) {
       const pattern = new RegExp(escapeRegex(query), 'i');
-      filter = {
-        $or: [
-          { title: { $regex: pattern } },
-          { author: { $regex: pattern } }
-        ]
-      };
+      filter.$or = [
+        { title: { $regex: pattern } },
+        { author: { $regex: pattern } }
+      ];
     }
 
     const books = await Book.find(filter).sort({createdAt: -1}).lean();
