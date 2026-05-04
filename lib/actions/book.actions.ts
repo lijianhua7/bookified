@@ -7,6 +7,7 @@ import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
 import mongoose from "mongoose";
 import { revalidatePath } from "next/cache";
+import { getUserPlanLimits } from "../billing";
 
 export const getAllBooks = async () => {
   try {
@@ -74,7 +75,17 @@ export const createBook = async (data: CreateBook) => {
       };
     }
 
-    // Todo: 创建图书前先检查订阅限制
+    // 创建图书前先检查订阅限制
+    const limits = await getUserPlanLimits();
+    const userBooksCount = await Book.countDocuments({ clerkId: data.clerkId });
+
+    if (userBooksCount >= limits.books) {
+      return {
+        success: false,
+        error: `您已达到当前订阅计划的图书上传上限（${limits.books}本）。请升级计划以继续上传。`,
+        isBillingError: true,
+      };
+    }
 
     const book = await Book.create({ ...data, slug, totalSegments: 0 });
 

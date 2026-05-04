@@ -18,6 +18,8 @@ export default function VapiControls({ book }: { book: IBook }) {
     stop,
     limitError,
     clearError,
+    maxDurationSeconds,
+    showTimeWarning,
   } = useVapi(book);
 
   return (
@@ -74,8 +76,15 @@ export default function VapiControls({ book }: { book: IBook }) {
             <div className="flex flex-wrap items-center gap-2 mt-1">
               {/* 状态指示器 */}
               <span className="vapi-status-indicator">
-                <span className="vapi-status-dot vapi-status-dot-ready" />
-                <span className="vapi-status-text">就绪</span>
+                <span className={`vapi-status-dot ${status === "idle" ? "vapi-status-dot-ready" : `vapi-status-dot-${status}`}`} />
+                <span className="vapi-status-text">
+                  {status === "idle" && "就绪"}
+                  {status === "connecting" && "连接中..."}
+                  {status === "starting" && "启动中..."}
+                  {status === "listening" && "聆听中..."}
+                  {status === "thinking" && "思考中..."}
+                  {status === "speaking" && "讲话中..."}
+                </span>
               </span>
 
               {/* 语音标签 */}
@@ -86,8 +95,10 @@ export default function VapiControls({ book }: { book: IBook }) {
               </span>
 
               {/* 计时器 */}
-              <span className="vapi-status-indicator">
-                <span className="vapi-status-text">0:00/15:00</span>
+              <span className={`vapi-status-indicator ${showTimeWarning ? "text-red-500 font-bold" : ""}`}>
+                <span className="vapi-status-text">
+                  {Math.floor(duration / 60)}:{(duration % 60).toString().padStart(2, "0")} / {Math.floor(maxDurationSeconds / 60)}:{(maxDurationSeconds % 60).toString().padStart(2, "0")}
+                </span>
               </span>
             </div>
           </div>

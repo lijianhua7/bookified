@@ -163,7 +163,12 @@ export default function UploadForm() {
 
       // 创建失败
       if (!book.success) {
-        throw new Error("创建图书失败");
+        if (book.isBillingError) {
+          toast.error(book.error as string || "您已达到当前订阅计划的上限，请升级计划以继续上传。");
+          router.push('/subscriptions');
+          return;
+        }
+        throw new Error(book.error as string || "创建图书失败");
       }
 
       // 创建的图书已存在
@@ -185,7 +190,7 @@ export default function UploadForm() {
       )
 
       if (!segments.success) {
-        toast.error("保存图书片段失败");
+        toast.error("保存图书片段失败，请稍后再试。");
         throw new Error("保存图书片段失败");
       }
 
