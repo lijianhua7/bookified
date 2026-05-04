@@ -1,5 +1,7 @@
 "use server";
 
+import { auth } from "@clerk/nextjs/server";
+
 import { connectToDatabase } from "@/database/mongoose";
 import { escapeRegex, generateSlug, serializeData } from "../utils";
 import { CreateBook, TextSegment } from "@/type";
@@ -9,11 +11,22 @@ import mongoose from "mongoose";
 import { revalidatePath } from "next/cache";
 import { getUserPlanLimits } from "../billing";
 
-export const getAllBooks = async () => {
+export const getAllBooks = async (query?: string) => {
   try {
     await connectToDatabase();
 
-    const books = await Book.find().sort({createdAt: -1}).lean();
+    let filter = {};
+    if (query) {
+      const pattern = new RegExp(escapeRegex(query), 'i');
+      filter = {
+        $or: [
+          { title: { $regex: pattern } },
+          { author: { $regex: pattern } }
+        ]
+      };
+    }
+
+    const books = await Book.find(filter).sort({createdAt: -1}).lean();
 
     return {
       success: true,
@@ -59,6 +72,11 @@ export const checkBookExists = async (title: string) => {
 // 创建图书
 export const createBook = async (data: CreateBook) => {
   try {
+    const { userId } = await auth();
+    if (!userId) {
+      throw new Error("未授权");
+    }
+
     await connectToDatabase();
 
     const slug = generateSlug(data.title);
@@ -77,7 +95,7 @@ export const createBook = async (data: CreateBook) => {
 
     // 创建图书前先检查订阅限制
     const limits = await getUserPlanLimits();
-    const userBooksCount = await Book.countDocuments({ clerkId: data.clerkId });
+    const userBooksCount = await Book.countDocuments({ clerkId: userId });
 
     if (userBooksCount >= limits.books) {
       return {
@@ -87,7 +105,7 @@ export const createBook = async (data: CreateBook) => {
       };
     }
 
-    const book = await Book.create({ ...data, slug, totalSegments: 0 });
+    const book = await Book.create({ ...data, clerkId: userId, slug, totalSegments: 0 });
 
     revalidatePath('/');
 
